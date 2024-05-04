@@ -1,0 +1,4 @@
+{
+  "header": "<|user|>\nBelow is an instruction that describes a task.\nWrite a summary of the transcript as bullet point\nHere is the transcript:\n```\n",
+  "footer": "\n```\n<|assistant|>\n"
+}
