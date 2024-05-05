@@ -19,6 +19,7 @@
 // 2. Run the executable with the following command-line arguments:
 //    -d or --dir: Specifies the directory containing pre-chunked text files.
 //    -o or --output: Specifies the output JSON file.
+//    --params: Specifies the JSON file containing request parameters (optional).
 //
 // Example Usage:
 // $ ./koboldai_summarization_cli --dir /path/to/chunked_text_files --output output.json
@@ -47,15 +48,25 @@ struct CliArgs {
 
     #[structopt(short = "o", long = "output", help = "Sets the output JSON file")]
     output: String, // New argument to specify the output JSON file
+
+    #[structopt(
+        short = "p",
+        long = "params",
+        help = "Sets the JSON file containing request parameters (optional)"
+    )]
+    params: Option<String>, // Optional argument to specify the parameters JSON file
 }
 
 // Send request to the API
-fn send_request(txt_file_path: &str) -> Result<Value, Box<dyn std::error::Error>> {
+fn send_request(
+    txt_file_path: &str,
+    params: Option<&str>,
+) -> Result<Value, Box<dyn std::error::Error>> {
     // Read the prompt from a text file
     let prompt = fs::read_to_string(txt_file_path)?;
 
-    // Prepare the request body
-    let request_body = json!({
+    // Default request parameters
+    let mut request_body = json!({
         "max_context_length": 512,
         "max_length": 100,
         "prompt": prompt.trim(),
@@ -63,8 +74,21 @@ fn send_request(txt_file_path: &str) -> Result<Value, Box<dyn std::error::Error>
         "rep_pen": 1.1,
         "rep_pen_range": 256,
         "rep_pen_slope": 1,
-        "temperature": 0.0, // Change the temperature here
+        "temperature": 0.5,
     });
+
+    // If params file path is provided, merge parameters from the file
+    if let Some(params_path) = params {
+        let params_json = fs::read_to_string(params_path)?;
+        let params: Value = serde_json::from_str(&params_json)?;
+
+        // Ensure that request_body is a mutable reference
+        if let Value::Object(mut obj) = request_body {
+            // Merge parameters from the file into default parameters
+            merge_json(&mut obj, &params);
+            request_body = Value::Object(obj); // Convert back to Value
+        }
+    }
 
     // Send the request
     let client = Client::new();
@@ -82,6 +106,21 @@ fn send_request(txt_file_path: &str) -> Result<Value, Box<dyn std::error::Error>
         Ok(response_json)
     } else {
         Err(format!("Request failed with status: {}", response.status()).into())
+    }
+}
+
+// Function to merge JSON objects
+fn merge_json(base: &mut serde_json::Map<String, Value>, new: &Value) {
+    if let Value::Object(new_obj) = new {
+        for (key, value) in new_obj.iter() {
+            if let Some(base_value) = base.get_mut(key) {
+                if let Value::Object(base_obj) = base_value {
+                    merge_json(base_obj, value);
+                }
+            } else {
+                base.insert(key.clone(), value.clone());
+            }
+        }
     }
 }
 
@@ -130,7 +169,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let file_name = file_path.file_name().unwrap().to_string_lossy().to_string();
 
         // Send request for each file
-        match send_request(file_path.to_str().unwrap()) {
+        match send_request(file_path.to_str().unwrap(), args.params.as_deref()) {
             Ok(response) => {
                 // Tag the response with the filename and store in the hashmap
                 results.insert(file_name.clone(), response);
