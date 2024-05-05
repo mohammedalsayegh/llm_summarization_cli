@@ -1,6 +1,3 @@
-Certainly! Here's how you can include the explanation of JSON parameters in the README:
-
-```markdown
 # koboldai_summarization_cli
 KoboldAI Summarizer: Rust CLI tool for generating document summaries using KoboldAI's API. It facilitates the process of generating summaries from text files by interfacing with KoboldAI's language model backend.
 
@@ -45,6 +42,3 @@ cargo build --release
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-``` 
-
-This README section provides an overview of the parameters that can be customized using JSON and how to use them with the CLI.
