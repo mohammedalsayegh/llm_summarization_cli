@@ -14,10 +14,11 @@ JSON Text Merger is a command-line tool written in Rust that facilitates the mer
 2. **Run**: Execute the compiled binary with the following command-line arguments:
    - The first argument: Path to the input JSON file.
    - The second argument: Path to the output text file.
+   - The third argument: Mode of JSON file handling. Options are "koboldai" or "ollama".
 
 Example:
 ```bash
-$ ./json_text_merger input.json output.txt
+$ ./json_text_merger input.json output.txt koboldai
 ```
 
 ## Dependencies
@@ -30,5 +31,6 @@ $ git clone <repository_url>
 $ cd json-text-merger
 $ cargo build --release
 ```
+
 ## Acknowledgements
 JSON Text Merger makes use of the serde_json crate for JSON parsing. Special thanks to the Rust community for creating and maintaining such useful libraries.
