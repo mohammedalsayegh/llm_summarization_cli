@@ -2,7 +2,7 @@
 // Project: Transcript Splitter
 //
 // Description:
-// This Rust utility splits transcript text files into smaller parts based on a maximum number of tokens per split. It reads a transcript file, removes header lines, joins lines into paragraphs, and splits the text into smaller parts. Each part includes a configurable header and footer.
+// This Rust utility splits transcript text files into smaller parts based on a maximum number of tokens per split. It reads a transcript file and wraps its content with configurable header and footer. If in single shot mode, it generates a single output file containing the entire transcript with the specified header and footer. If in split mode, it removes header lines, joins lines into paragraphs, and splits the text into smaller parts, each including the configured header and footer.
 //
 // How to Use:
 // - Compile the code using the Rust compiler.
@@ -11,15 +11,17 @@
 //   - -o <output_dir>: Optional. Output directory for split files. If not provided, splits will be saved in a directory named after the input file in the current directory.
 //   - -s <max_tokens_per_split>: Maximum number of tokens (words) per split.
 //   - -c <config_file>: Path to the configuration file specifying header and footer content.
+//   - --single-shot: Optional flag to enable single shot mode, which generates a single output file for the entire transcript.
 //
 // Example Usage:
 // $ ./transcript_splitter -i input.txt -o output_directory -s 1000 -c config.json
+// $ ./transcript_splitter -i input.txt -c config.json --single-shot
 //
 // Dependencies:
 // - serde: For JSON deserialization.
 // - std: Standard Rust library for file I/O and command-line argument parsing.
 //
-// This tool simplifies the process of splitting large transcript files into smaller, more manageable parts, facilitating easier handling and processing of transcript data.
+// This tool simplifies the process of handling and processing transcript data, facilitating easier management and manipulation of large transcript files.
 
 use serde::Deserialize;
 use std::env;
@@ -37,6 +39,39 @@ fn read_config(config_file: &str) -> io::Result<Config> {
     let config_content = fs::read_to_string(config_file)?;
     let config: Config = serde_json::from_str(&config_content)?;
     Ok(config)
+}
+
+fn wrap_with_header_footer(text: &str, config: &Config) -> String {
+    format!("{}{}{}\n\n", config.header, text, config.footer)
+}
+
+fn single_shot_mode(
+    input_file: &str,
+    config_file: &str,
+    output_dir: Option<&str>,
+) -> io::Result<()> {
+    let config = read_config(config_file)?;
+
+    let file_content = fs::read_to_string(input_file)?;
+    let wrapped_text = wrap_with_header_footer(&file_content, &config);
+
+    let (file_name, file_extension) = split_extension(input_file);
+
+    let output_dir = if let Some(dir) = output_dir {
+    dir.to_string()
+    } else {
+        let current_dir = env::current_dir().unwrap();
+        let file_stem = Path::new(&input_file).file_stem().unwrap().to_string_lossy();
+        current_dir.join(format!("{}_splits", file_stem)).to_string_lossy().to_string()
+    };
+
+    fs::create_dir_all(&output_dir)?;
+
+    let output_file = format!("{}/{}_single_shot{}", output_dir, file_name, file_extension);
+    let mut output = File::create(output_file)?;
+    output.write_all(wrapped_text.as_bytes())?;
+
+    Ok(())
 }
 
 fn split_text(
@@ -112,6 +147,7 @@ fn main() -> io::Result<()> {
     let mut output_dir = None;
     let mut max_tokens_per_split = None;
     let mut config_file = None;
+    let mut single_shot = false; // Flag for single shot mode
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -147,6 +183,9 @@ fn main() -> io::Result<()> {
                     return Ok(());
                 }
             }
+            "--single-shot" => {
+                single_shot = true; // Set the single shot flag
+            }
             _ => {
                 println!("Error: Invalid flag '{}'", arg);
                 return Ok(());
@@ -154,28 +193,48 @@ fn main() -> io::Result<()> {
         }
     }
 
-    let input_file = input_file.ok_or_else(|| {
-        println!("Error: Missing input file argument (-i)");
-        io::Error::from(io::ErrorKind::InvalidInput)
-    })?;
+    if single_shot {
+        let input_file = input_file.ok_or_else(|| {
+            println!("Error: Missing input file argument (-i)");
+            io::Error::from(io::ErrorKind::InvalidInput)
+        })?;
 
-    let output_dir = output_dir.unwrap_or_else(|| {
-        let current_dir = env::current_dir().unwrap();
-        let file_stem = Path::new(&input_file).file_stem().unwrap().to_string_lossy();
-        current_dir.join(format!("{}_splits", file_stem)).to_string_lossy().to_string()
-    });
+        let config_file = config_file.ok_or_else(|| {
+            println!("Error: Missing config file argument (-c)");
+            io::Error::from(io::ErrorKind::InvalidInput)
+        })?;
 
-    let max_tokens_per_split = max_tokens_per_split.ok_or_else(|| {
-        println!("Error: Missing max tokens per split argument (-s)");
-        io::Error::from(io::ErrorKind::InvalidInput)
-    })?;
+        let output_dir = output_dir.unwrap_or_else(|| {
+            let current_dir = env::current_dir().unwrap();
+            let file_stem = Path::new(&input_file).file_stem().unwrap().to_string_lossy();
+            current_dir.join(format!("{}_splits", file_stem)).to_string_lossy().to_string()
+        });
 
-    let config_file = config_file.ok_or_else(|| {
-        println!("Error: Missing config file argument (-c)");
-        io::Error::from(io::ErrorKind::InvalidInput)
-    })?;
+        single_shot_mode(&input_file, &config_file, Some(&output_dir))?;
+    } else {
+        let input_file = input_file.ok_or_else(|| {
+            println!("Error: Missing input file argument (-i)");
+            io::Error::from(io::ErrorKind::InvalidInput)
+        })?;
 
-    split_text(&input_file, max_tokens_per_split, &config_file, Some(&output_dir))?;
+        let output_dir = output_dir.unwrap_or_else(|| {
+            let current_dir = env::current_dir().unwrap();
+            let file_stem = Path::new(&input_file).file_stem().unwrap().to_string_lossy();
+            current_dir.join(format!("{}_splits", file_stem)).to_string_lossy().to_string()
+        });
+
+        let max_tokens_per_split = max_tokens_per_split.ok_or_else(|| {
+            println!("Error: Missing max tokens per split argument (-s)");
+            io::Error::from(io::ErrorKind::InvalidInput)
+        })?;
+
+        let config_file = config_file.ok_or_else(|| {
+            println!("Error: Missing config file argument (-c)");
+            io::Error::from(io::ErrorKind::InvalidInput)
+        })?;
+
+        split_text(&input_file, max_tokens_per_split, &config_file, Some(&output_dir))?;
+    }
 
     Ok(())
 }
