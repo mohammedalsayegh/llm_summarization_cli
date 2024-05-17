@@ -10,11 +10,11 @@ This Rust command-line tool interfaces with the Ollama API, a Large Language Mod
 
 ## Usage
 1. **Installation**: Clone this repository and install the required dependencies using Cargo.
-2. **Execution**: Run the program, specifying the directory containing text files, the output destination for the summaries, and optionally a JSON file containing custom parameters for summarization.
+2. **Execution**: Run the program, specifying the directory containing text files, the output destination for the summaries, the API URL, the model name, and optionally a JSON file containing custom parameters for summarization.
 
 ```sh
 cargo build --release
-./ollama_summarization_cli --dir /path/to/text_files --output output.json [--params params.json]
+./ollama_summarization_cli --dir /path/to/text_files --output output.json --url http://localhost:11434/api/generate --model phi3 [--params params.json]
 ```
 
 ## Dependencies

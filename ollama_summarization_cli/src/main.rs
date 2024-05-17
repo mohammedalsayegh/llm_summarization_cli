@@ -20,10 +20,11 @@
 //    -d or --dir: Specifies the directory containing pre-chunked text files.
 //    -o or --output: Specifies the output JSON file.
 //    -u or --url: Specifies the API URL for the Ollama API.
+//    -m or --model: Specifies the model name to use.
 //    --params: Specifies the JSON file containing request parameters (optional).
 //
 // Example Usage:
-// $ ./ollama_summarization_cli --dir /path/to/chunked_text_files --output output.json --url http://localhost:11434/api/generate
+// $ ./ollama_summarization_cli --dir /path/to/chunked_text_files --output output.json --url http://localhost:11434/api/generate --model phi3
 //
 // This tool is designed for projects requiring automated text summarization of large text files by leveraging
 // the capabilities of the Ollama API. It offers a straightforward approach to processing pre-chunked text
@@ -42,7 +43,7 @@ use std::{
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
-#[structopt(name = "KoboldAI Summarization CLI Tool")]
+#[structopt(name = "Ollama Summarization CLI Tool")]
 struct CliArgs {
     #[structopt(
         short = "d",
@@ -57,9 +58,16 @@ struct CliArgs {
     #[structopt(
         short = "u",
         long = "url",
-        help = "Sets the API URL for the KoboldAI API"
+        help = "Sets the API URL for the Ollama API"
     )]
     api_url: String,
+
+    #[structopt(
+        short = "m",
+        long = "model",
+        help = "Sets the model name to use"
+    )]
+    model: String,
 
     #[structopt(
         short = "p",
@@ -72,10 +80,11 @@ struct CliArgs {
 fn send_request(
     api_url: &str,
     prompt: &str,
+    model: &str,
     params: Option<&str>,
 ) -> Result<String, Box<dyn Error>> {
     let mut request_body = json!({
-        "model": "phi3",
+        "model": model,
         "prompt": prompt.trim(),
         "stream": false
     });
@@ -175,7 +184,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let file_name = file_path.file_name().unwrap().to_string_lossy().to_string();
 
         // Send request for each file
-        match send_request(&args.api_url, &fs::read_to_string(&file_path)?, args.params.as_deref()) {
+        match send_request(&args.api_url, &fs::read_to_string(&file_path)?, &args.model, args.params.as_deref()) {
             Ok(response) => {
                 // Tag the response with the filename and store in the hashmap
                 results.insert(file_name.clone(), serde_json::Value::String(response));
