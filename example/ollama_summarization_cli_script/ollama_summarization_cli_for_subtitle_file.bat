@@ -8,6 +8,7 @@ set "batch_dir=%~dp0"
 set "full_path=.\"
 set "filename=subtitles"
 set "output_dir=%full_path%"
+set "model_name=llama3.1"
 
 :: Remove temporary directories if they exist
 if exist "%batch_dir%tmp" rd /s /q "%batch_dir%tmp"
@@ -44,7 +45,7 @@ echo transcript-splitter.exe completed successfully.
 powershell.exe -Command "Remove-Item -Path '%filename%.txt' -ErrorAction SilentlyContinue"
 echo File '%filename%.txt' removed successfully, if it existed.
 
-powershell.exe -Command ".\ollama_summarization_cli.exe -d '%tmp_dir%' -o '%tmp_final_dir%\out.json' -u http://localhost:11434/api/generate" -m %2
+powershell.exe -Command ".\ollama_summarization_cli.exe -d '%tmp_dir%' -o '%tmp_final_dir%\out.json' -u http://localhost:11434/api/generate" -m %model_name%
 if not errorlevel 0 (
     echo Error: ollama_summarization_cli.exe failed.
     exit /b 1
@@ -74,26 +75,37 @@ if exist "%tmp_final_dir%\%filename%_output.txt" (
     echo File '%tmp_final_dir%\%filename%_output.txt' deleted successfully.
 )
 
-powershell.exe -Command ".\ollama_summarization_cli.exe -d '%tmp_final_dir%' -o '%output_dir%out.json' -u http://localhost:11434/api/generate" -m %2
+powershell.exe -Command ".\ollama_summarization_cli.exe -d '%tmp_final_dir%' -o '%output_dir%out.json' -u http://localhost:11434/api/generate" -m %model_name%
 if not errorlevel 0 (
     echo Error: ollama_summarization_cli.exe for final step failed.
     exit /b 1
 )
 echo ollama_summarization_cli.exe for final step completed successfully.
 
-powershell.exe -Command ".\json_text_merger.exe '%output_dir%out.json' '%output_dir%output_final.txt' ollama"
+powershell.exe -Command ".\json_text_merger.exe '%output_dir%out.json' '%output_dir%output_%~n1.txt' ollama"
 if not errorlevel 0 (
     echo Error: json_text_merger.exe for final step failed.
     exit /b 1
 )
 echo json_text_merger.exe for final step completed successfully.
 
+::Copy the txt generated to 
+
+set "destination=%~dp1"
+copy "%output_dir%output_%~n1.txt" "%destination%" >nul 2>&1
+
+if errorlevel 1 (
+    echo Error: Failed to copy .txt files.
+) else (
+    echo Successfully copied .txt files to %destination%.
+)
+
 :: Remove temporary directories
 echo Cleaning up temporary files...
 rmdir /s /q "%tmp_dir%"
 rmdir /s /q "%tmp_final_dir%"
+del /q "%~dp0*.txt" || echo Error: Failed to delete .txt files.
 
-txt_youtube_id_rename.exe .\
 echo Temporary files cleaned up successfully.
 
 rem End the timer
