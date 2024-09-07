@@ -82,6 +82,9 @@ if not errorlevel 0 (
 )
 echo ollama_summarization_cli.exe for final step completed successfully.
 
+del /q "%~dp0*.txt" || echo Error: Failed to delete .txt files.
+del /q "%~dp0*.srt" || echo Error: Failed to delete .srt files.
+
 powershell.exe -Command ".\json_text_merger.exe '%output_dir%out.json' '%output_dir%output_%~n1.txt' ollama"
 if not errorlevel 0 (
     echo Error: json_text_merger.exe for final step failed.
@@ -89,22 +92,10 @@ if not errorlevel 0 (
 )
 echo json_text_merger.exe for final step completed successfully.
 
-::Copy the txt generated to 
-
-set "destination=%~dp1"
-copy "%output_dir%output_%~n1.txt" "%destination%" >nul 2>&1
-
-if errorlevel 1 (
-    echo Error: Failed to copy .txt files.
-) else (
-    echo Successfully copied .txt files to %destination%.
-)
-
 :: Remove temporary directories
 echo Cleaning up temporary files...
 rmdir /s /q "%tmp_dir%"
 rmdir /s /q "%tmp_final_dir%"
-del /q "%~dp0*.txt" || echo Error: Failed to delete .txt files.
 
 echo Temporary files cleaned up successfully.
 
