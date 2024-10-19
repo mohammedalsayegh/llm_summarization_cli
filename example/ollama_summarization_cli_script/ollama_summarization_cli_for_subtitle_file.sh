@@ -14,8 +14,8 @@ model_name="llama3.1"
 # Remove temporary directories if they exist
 rm -rf "${batch_dir}tmp" "${batch_dir}tmp_final"
 
-# Remove .txt and .srt files in the current directory
-rm -f *.txt *.srt
+# Remove .txt files in the current directory
+rm -f *.txt
 
 # Create temporary directory if it doesn't exist
 mkdir -p "${batch_dir}tmp"
@@ -43,8 +43,8 @@ if [ $? -ne 0 ]; then
 fi
 echo "transcript-splitter completed successfully."
 
-rm -f "${filename}.txt"
-echo "File '${filename}.txt' removed successfully, if it existed."
+rm -f "converted_subtitles.txt"
+echo "File 'converted_subtitles.txt' removed successfully, if it existed."
 
 ./ollama_summarization_cli -d "$tmp_dir" -o "${tmp_final_dir}/out.json" -u "http://localhost:11434/api/generate" -m "$model_name"
 if [ $? -ne 0 ]; then
@@ -81,8 +81,8 @@ if [ $? -ne 0 ]; then
 fi
 echo "ollama_summarization_cli for final step completed successfully."
 
-rm -f "${batch_dir}*.txt" || echo "Error: Failed to delete .txt files."
-rm -f "${batch_dir}*.srt" || echo "Error: Failed to delete .srt files."
+# Remove .txt and .srt files in the current directory
+rm -f *.txt *.srt || echo "Error: Failed to delete .txt or .srt files."
 
 ./json_text_merger "${output_dir}/out.json" "${output_dir}/output_$(basename "$1" .srt).txt" "ollama"
 if [ $? -ne 0 ]; then
